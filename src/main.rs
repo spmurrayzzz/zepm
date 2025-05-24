@@ -1,4 +1,4 @@
-use actix_web::{middleware::Logger, web, App, HttpResponse, HttpServer, Responder};
+use actix_web::{App, HttpResponse, HttpServer, Responder, middleware::Logger, web};
 use chrono::Utc;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
@@ -25,7 +25,6 @@ struct AppState {
     config: Config,
     client: Client,
 }
-
 
 #[derive(Deserialize, Clone)]
 struct PredictEditsRequest {
@@ -56,7 +55,9 @@ async fn main() -> std::io::Result<()> {
     let config = Config {
         llama_server_url: env::var("LLAMA_SERVER_URL")
             .unwrap_or_else(|_| "http://localhost:8080".into()),
-        debug: env::var("DEBUG").map(|v| v == "1" || v == "true").unwrap_or(true),
+        debug: env::var("DEBUG")
+            .map(|v| v == "1" || v == "true")
+            .unwrap_or(true),
         max_tokens: env::var("MAX_TOKENS")
             .unwrap_or_else(|_| "128".into())
             .parse()
@@ -65,7 +66,9 @@ async fn main() -> std::io::Result<()> {
             .unwrap_or_else(|_| "0.1".into())
             .parse()
             .unwrap_or(0.2),
-        fallback_mode: env::var("FALLBACK_MODE").map(|v| v == "1" || v == "true").unwrap_or(false),
+        fallback_mode: env::var("FALLBACK_MODE")
+            .map(|v| v == "1" || v == "true")
+            .unwrap_or(false),
     };
 
     let client = Client::builder()
@@ -73,7 +76,10 @@ async fn main() -> std::io::Result<()> {
         .build()
         .expect("failed to build reqwest client");
 
-    let state = web::Data::new(AppState { config: config.clone(), client });
+    let state = web::Data::new(AppState {
+        config: config.clone(),
+        client,
+    });
 
     let _ = env_logger::try_init();
 
@@ -82,20 +88,26 @@ async fn main() -> std::io::Result<()> {
     );
     info!("Server running at http://localhost:{port}");
     info!("Using llama.cpp server at: {}", config.llama_server_url);
-    info!("\nDebug mode: {}", if config.debug { "ENABLED" } else { "disabled" });
-    info!("Fallback mode: {}", if config.fallback_mode { "ENABLED" } else { "disabled" });
+    info!(
+        "\nDebug mode: {}",
+        if config.debug { "ENABLED" } else { "disabled" }
+    );
+    info!(
+        "Fallback mode: {}",
+        if config.fallback_mode {
+            "ENABLED"
+        } else {
+            "disabled"
+        }
+    );
     info!("Temperature: {}", config.temperature);
     info!("Max tokens: {}", config.max_tokens);
     info!("\n=== USAGE INSTRUCTIONS ===");
     info!("To use with Zed, run:");
-    info!(
-        "ZED_PREDICT_EDITS_URL=http://localhost:{port}/predict_edits/v2 zed\n"
-    );
+    info!("ZED_PREDICT_EDITS_URL=http://localhost:{port}/predict_edits/v2 zed\n");
     info!("=== TROUBLESHOOTING OPTIONS ===");
     info!("For testing with a hardcoded completion, run:");
-    info!(
-        "ZED_PREDICT_EDITS_URL=http://localhost:{port}/test-completion zed\n"
-    );
+    info!("ZED_PREDICT_EDITS_URL=http://localhost:{port}/test-completion zed\n");
     info!("URL parameters for debugging:");
     info!("  ?debug=true  - Enable detailed debug output");
     info!("  ?fallback=true - Use static completions without calling LLM");
@@ -108,8 +120,12 @@ async fn main() -> std::io::Result<()> {
             .wrap(Logger::default())
             .service(web::resource("/predict_edits/v2").route(web::post().to(predict_edits_v2)))
             .service(web::resource("/health").route(web::get().to(health)))
-            .service(web::resource("/test-completion").route(web::post().to(|body: web::Json<PredictEditsRequest>| test_completion(Some(body)))))
-            .service(web::resource("/test-completion").route(web::get().to(|| test_completion(None))))
+            .service(web::resource("/test-completion").route(
+                web::post().to(|body: web::Json<PredictEditsRequest>| test_completion(Some(body))),
+            ))
+            .service(
+                web::resource("/test-completion").route(web::get().to(|| test_completion(None))),
+            )
     })
     .bind(("0.0.0.0", port))?
     .run()
@@ -142,7 +158,7 @@ async fn predict_edits_v2(
         None => {
             return HttpResponse::BadRequest().json(serde_json::json!({
                 "error": "Missing input_excerpt"
-            }))
+            }));
         }
     };
 
@@ -167,7 +183,10 @@ async fn predict_edits_v2(
         if let Ok((_, _, cursor_pos)) = extract_context(&input_excerpt) {
             let fallback_code = get_fallback_completion(&input_excerpt);
 
-            log::info!("Inserting fallback completion at cursor position {}", cursor_pos);
+            log::info!(
+                "Inserting fallback completion at cursor position {}",
+                cursor_pos
+            );
             log::info!("Fallback completion length: {} chars", fallback_code.len());
 
             let output_excerpt = format!(
@@ -192,7 +211,14 @@ async fn predict_edits_v2(
         config_copy.debug = true;
     }
 
-    match generate_completion(&state.client, &config_copy, &input_excerpt, force_completion).await {
+    match generate_completion(
+        &state.client,
+        &config_copy,
+        &input_excerpt,
+        force_completion,
+    )
+    .await
+    {
         Ok(output_excerpt) => {
             log::debug!("\n==== RESPONSE INFO ====");
             log::debug!("Output excerpt length: {} chars", output_excerpt.len());
@@ -212,7 +238,7 @@ async fn predict_edits_v2(
 
             let response_obj = PredictEditsResponse {
                 request_id: Uuid::new_v4().to_string(),
-                output_excerpt
+                output_excerpt,
             };
 
             HttpResponse::Ok()
@@ -256,7 +282,7 @@ async fn test_completion(body: Option<web::Json<PredictEditsRequest>>) -> impl R
                     }
                 }
             }
-        },
+        }
         None => {}
     }
 
@@ -273,11 +299,21 @@ async fn async_test_completion() -> HttpResponse {
 }
 
 fn get_fallback_completion(input_excerpt: &str) -> String {
-    let file_extension = if input_excerpt.contains(".js") || input_excerpt.contains("function") || input_excerpt.contains("const") {
+    let file_extension = if input_excerpt.contains(".js")
+        || input_excerpt.contains("function")
+        || input_excerpt.contains("const")
+    {
         "js"
-    } else if input_excerpt.contains(".py") || input_excerpt.contains("def ") || input_excerpt.contains("import ") {
+    } else if input_excerpt.contains(".py")
+        || input_excerpt.contains("def ")
+        || input_excerpt.contains("import ")
+    {
         "py"
-    } else if input_excerpt.contains(".rs") || input_excerpt.contains("fn ") || input_excerpt.contains("pub ") || input_excerpt.contains("struct ") {
+    } else if input_excerpt.contains(".rs")
+        || input_excerpt.contains("fn ")
+        || input_excerpt.contains("pub ")
+        || input_excerpt.contains("struct ")
+    {
         "rs"
     } else {
         "txt"
@@ -298,10 +334,14 @@ async fn generate_completion(
     force_completion: bool,
 ) -> Result<String, Box<dyn std::error::Error>> {
     if config.debug {
-        log::debug!("\n==== RAW INPUT EXCERPT (to generate_completion) ====\n{}\n===================================================", input_excerpt);
+        log::debug!(
+            "\n==== RAW INPUT EXCERPT (to generate_completion) ====\n{}\n===================================================",
+            input_excerpt
+        );
     }
 
-    let (llm_prefix_clean, llm_suffix_clean, _original_cursor_pos) = extract_context(input_excerpt)?;
+    let (llm_prefix_clean, llm_suffix_clean, _original_cursor_pos) =
+        extract_context(input_excerpt)?;
 
     if config.debug {
         log::debug!("==== REQUEST DETAILS ====");
@@ -310,8 +350,14 @@ async fn generate_completion(
             llm_prefix_clean.len(),
             llm_suffix_clean.len()
         );
-        log::debug!("Prefix sample: \"{}\"", llm_prefix_clean.chars().take(50).collect::<String>());
-        log::debug!("Suffix sample: \"{}\"", llm_suffix_clean.chars().take(50).collect::<String>());
+        log::debug!(
+            "Prefix sample: \"{}\"",
+            llm_prefix_clean.chars().take(50).collect::<String>()
+        );
+        log::debug!(
+            "Suffix sample: \"{}\"",
+            llm_suffix_clean.chars().take(50).collect::<String>()
+        );
         log::debug!("Using temperature: {}", config.temperature);
         log::debug!("Max tokens: {}", config.max_tokens);
     }
@@ -330,28 +376,39 @@ async fn generate_completion(
     });
 
     if config.debug {
-        log::debug!("Request payload: {}", serde_json::to_string_pretty(&request_body).unwrap_or_default());
+        log::debug!(
+            "Request payload: {}",
+            serde_json::to_string_pretty(&request_body).unwrap_or_default()
+        );
     }
 
     let resp = match client
         .post(format!("{}/infill", config.llama_server_url))
         .json(&request_body)
         .send()
-        .await {
-            Ok(response) => {
-                if !response.status().is_success() {
-                    let status = response.status();
-                    let error_text = response.text().await.unwrap_or_else(|_| "Failed to get error body".into());
-                    log::error!("Error from llama.cpp server: Status {}, Body: {}", status, error_text);
-                    return Err(format!("LLM server error: HTTP {}", status).into());
-                }
-                response
-            },
-            Err(e) => {
-                log::error!("Failed to connect to llama.cpp server: {e}");
-                return Err(format!("Connection error: {}", e).into());
+        .await
+    {
+        Ok(response) => {
+            if !response.status().is_success() {
+                let status = response.status();
+                let error_text = response
+                    .text()
+                    .await
+                    .unwrap_or_else(|_| "Failed to get error body".into());
+                log::error!(
+                    "Error from llama.cpp server: Status {}, Body: {}",
+                    status,
+                    error_text
+                );
+                return Err(format!("LLM server error: HTTP {}", status).into());
             }
-        };
+            response
+        }
+        Err(e) => {
+            log::error!("Failed to connect to llama.cpp server: {e}");
+            return Err(format!("Connection error: {}", e).into());
+        }
+    };
 
     let json = match resp.json::<serde_json::Value>().await {
         Ok(json) => json,
@@ -384,7 +441,9 @@ async fn generate_completion(
     let is_useful_completion = true;
 
     if !is_useful_completion || force_completion {
-        log::warn!("Received low-quality completion or force mode enabled, using defined completion");
+        log::warn!(
+            "Received low-quality completion or force mode enabled, using defined completion"
+        );
 
         let fallback_completion = if force_completion {
             "    // Generated fields\n    server_name: String,\n    version: String,\n    initialized_at: std::time::SystemTime,\n    \n    // Configuration\n    max_connections: usize,\n    timeout_seconds: u64,".to_string()
@@ -392,8 +451,19 @@ async fn generate_completion(
             get_fallback_completion(input_excerpt)
         };
 
-        log::debug!("Using {} completion", if force_completion { "forced" } else { "fallback" });
-        log::debug!("At position: {} in a string of length: {}", _original_cursor_pos, input_excerpt.len());
+        log::debug!(
+            "Using {} completion",
+            if force_completion {
+                "forced"
+            } else {
+                "fallback"
+            }
+        );
+        log::debug!(
+            "At position: {} in a string of length: {}",
+            _original_cursor_pos,
+            input_excerpt.len()
+        );
 
         let output_excerpt = if _original_cursor_pos + CURSOR_MARKER.len() <= input_excerpt.len() {
             format!(
@@ -403,7 +473,11 @@ async fn generate_completion(
                 &input_excerpt[_original_cursor_pos + CURSOR_MARKER.len()..]
             )
         } else {
-            format!("{}{}", &input_excerpt[.._original_cursor_pos], fallback_completion)
+            format!(
+                "{}{}",
+                &input_excerpt[.._original_cursor_pos],
+                fallback_completion
+            )
         };
 
         return Ok(output_excerpt);
@@ -430,34 +504,49 @@ async fn generate_completion(
     Ok(output_excerpt)
 }
 
-fn extract_context(input_excerpt: &str) -> Result<(String, String, usize), Box<dyn std::error::Error>> {
+fn extract_context(
+    input_excerpt: &str,
+) -> Result<(String, String, usize), Box<dyn std::error::Error>> {
     let editable_start_tag = EDITABLE_REGION_START_MARKER;
     let editable_end_tag = EDITABLE_REGION_END_MARKER;
     let cursor_tag = CURSOR_MARKER;
 
-    let editable_content_start_offset = input_excerpt.find(editable_start_tag)
+    let editable_content_start_offset = input_excerpt
+        .find(editable_start_tag)
         .map(|pos| pos + editable_start_tag.len())
-        .ok_or_else(|| format!("EDITABLE_REGION_START_MARKER ('{}') not found", editable_start_tag))?;
+        .ok_or_else(|| {
+            format!(
+                "EDITABLE_REGION_START_MARKER ('{}') not found",
+                editable_start_tag
+            )
+        })?;
 
-    let editable_content_end_offset = input_excerpt.find(editable_end_tag)
-        .ok_or_else(|| format!("EDITABLE_REGION_END_MARKER ('{}') not found", editable_end_tag))?;
+    let editable_content_end_offset = input_excerpt.find(editable_end_tag).ok_or_else(|| {
+        format!(
+            "EDITABLE_REGION_END_MARKER ('{}') not found",
+            editable_end_tag
+        )
+    })?;
 
     if editable_content_start_offset >= editable_content_end_offset {
         return Err(format!(
             "Editable region is invalid or empty: start_offset ({}) >= end_offset ({})",
             editable_content_start_offset, editable_content_end_offset
-        ).into());
+        )
+        .into());
     }
 
-    let editable_content_slice = &input_excerpt[editable_content_start_offset..editable_content_end_offset];
+    let editable_content_slice =
+        &input_excerpt[editable_content_start_offset..editable_content_end_offset];
 
     let cursor_pos_in_editable_slice = editable_content_slice.rfind(cursor_tag)
          .ok_or_else(|| format!("CURSOR_MARKER ('{}') not found within the isolated editable content slice of length {}", cursor_tag, editable_content_slice.len()))?;
 
     let global_cursor_pos = editable_content_start_offset + cursor_pos_in_editable_slice;
 
-     if !(editable_content_start_offset <= global_cursor_pos &&
-           (global_cursor_pos + cursor_tag.len()) <= editable_content_end_offset) {
+    if !(editable_content_start_offset <= global_cursor_pos
+        && (global_cursor_pos + cursor_tag.len()) <= editable_content_end_offset)
+    {
         return Err(format!(
             "CURSOR_MARKER (found at global_pos {} via rfind) is not within the original editable region bounds ({}..{})",
             global_cursor_pos, editable_content_start_offset, editable_content_end_offset
