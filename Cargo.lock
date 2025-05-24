@@ -2549,7 +2549,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "zepm-rs"
+name = "zepm"
 version = "0.1.0"
 dependencies = [
  "actix-web",
