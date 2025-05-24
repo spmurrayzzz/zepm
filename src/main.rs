@@ -157,7 +157,7 @@ async fn predict_edits_v2(
 
     let input_excerpt = match &body.input_excerpt {
         Some(text) => text.clone(),
-        None => {
+        _none => {
             return HttpResponse::BadRequest().json(serde_json::json!({
                 "error": "Missing input_excerpt"
             }));
@@ -285,7 +285,7 @@ async fn test_completion(body: Option<web::Json<PredictEditsRequest>>) -> impl R
                 }
             }
         }
-        None => {}
+        _none => {}
     }
 
     async_test_completion().await
@@ -422,7 +422,7 @@ async fn generate_completion(
 
     let completion = match json.get("content") {
         Some(content) => content.as_str().unwrap_or_default(),
-        None => {
+        _none => {
             log::warn!("No 'content' field in response: {:?}", json);
             ""
         }
