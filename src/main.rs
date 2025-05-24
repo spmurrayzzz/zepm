@@ -84,7 +84,9 @@ async fn main() -> std::io::Result<()> {
     let _ = env_logger::try_init();
 
     info!(
-        "\n┌───────────────────────────────────────────┐\n│    Zed FIM Server - Troubleshooting Mode  │\n└───────────────────────────────────────────┘\n"
+        "\n┌───────────────────────────────────────────┐\
+         \n│    Zed FIM Server - Troubleshooting Mode  │\
+         \n└───────────────────────────────────────────┘\n"
     );
     info!("Server running at http://localhost:{port}");
     info!("Using llama.cpp server at: {}", config.llama_server_url);
@@ -548,9 +550,11 @@ fn extract_context(
         && (global_cursor_pos + cursor_tag.len()) <= editable_content_end_offset)
     {
         return Err(format!(
-            "CURSOR_MARKER (found at global_pos {} via rfind) is not within the original editable region bounds ({}..{})",
+            "CURSOR_MARKER (found at global_pos {} via rfind) is not within the original editable \
+            region bounds ({}..{})",
             global_cursor_pos, editable_content_start_offset, editable_content_end_offset
-        ).into());
+        )
+        .into());
     }
 
     let llm_prefix = editable_content_slice[..cursor_pos_in_editable_slice].to_string();
