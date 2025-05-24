@@ -1,0 +1,15 @@
+[package]
+name = "zepm-rs"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+actix-web = "4.11.0"
+chrono = "0.4.41"
+env_logger = "0.11.8"
+once_cell = "1.21.3"
+reqwest = { version = "0.12.15", features = ["json", "rustls-tls"] }
+serde = { version = "1.0.219", features = ["derive"] }
+serde_json = "1.0.140"
+tokio = { version = "1.45.0", features = ["rt", "macros", "rt-multi-thread"] }
+uuid = { version = "1.17.0", features = ["v4"] }
