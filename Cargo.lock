@@ -2555,6 +2555,7 @@ dependencies = [
  "actix-web",
  "chrono",
  "env_logger",
+ "log",
  "once_cell",
  "reqwest",
  "serde",
