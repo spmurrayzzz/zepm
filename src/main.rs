@@ -30,8 +30,6 @@ async fn main() -> std::io::Result<()> {
         client,
     });
 
-    let _ = env_logger::try_init();
-
     info!("Server running at http://localhost:{port}");
     info!("Using llama.cpp server at: {}", config.llama_server_url);
     info!(
