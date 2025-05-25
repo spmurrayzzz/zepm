@@ -7,11 +7,15 @@ use zepm::{config::Config, handlers, state::AppState, types};
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    env_logger::builder()
-        .filter_level(log::LevelFilter::Info)
-        .format_target(false)
-        .format_timestamp(None)
-        .init();
+    let mut builder = env_logger::Builder::new();
+    builder.format_target(false);
+    builder.format_timestamp(None);
+
+    if std::env::var("RUST_LOG").is_err() {
+        builder.filter_level(log::LevelFilter::Info);
+    }
+
+    builder.init();
 
     let port: u16 = env::var("PORT")
         .unwrap_or_else(|_| "3000".to_string())
