@@ -32,11 +32,6 @@ async fn main() -> std::io::Result<()> {
 
     let _ = env_logger::try_init();
 
-    info!(
-        "\n┌───────────────────────────────────────────┐\
-         \n│    Zed FIM Server - Troubleshooting Mode  │\
-         \n└───────────────────────────────────────────┘\n"
-    );
     info!("Server running at http://localhost:{port}");
     info!("Using llama.cpp server at: {}", config.llama_server_url);
     info!(
